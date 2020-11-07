@@ -1,12 +1,29 @@
-from fastapi import FastAPI
+from fastapi import Security, Depends, FastAPI, HTTPException
+from fastapi.security.api_key import APIKeyQuery, APIKey
 import uvicorn
+import json
 
-app = FastAPI()
+API_KEY = json.load(open('key.json', 'rb'))['key']
+api_key_query = APIKeyQuery(name='api-key', auto_error=False)
+
+app = FastAPI(docs_url=None)
+
+
+async def get_api_key(api_key_query: str = Security(api_key_query)):
+    if api_key_query == API_KEY:
+        return api_key_query
+    else:
+        raise HTTPException(status_code=403, detail="Could not validate credentials")
 
 
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
+
+
+@app.get("/secure-endpoint")
+async def secure_endpoint(api_key: APIKey = Depends(get_api_key)):
+    return {"message": "Secure Endpoint"}
 
 
 if __name__ == "__main__":
