@@ -1,6 +1,7 @@
 import pickle
 import os.path
 import time
+from base64 import b64decode
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -13,13 +14,14 @@ def get_message(service):
     results = service.users().messages().list(userId='me', q=searchq, maxResults=1).execute()
 
     try:
-        id = results['messages'][0]['id']
-        email = service.users().messages().get(userId='me', id=id, format='full').execute()
-        service.users().messages().modify(userId='me', id=id, body={'removeLabelIds': ["UNREAD"]}).execute()
-    except IndexError:
+        emailid = results['messages'][0]['id']
+        email = service.users().messages().get(userId='me', id=emailid, format='full').execute()
+        service.users().messages().modify(userId='me', id=emailid, body={'removeLabelIds': ["UNREAD"]}).execute()
+    except (KeyError, IndexError):
         return
 
-    print(email)
+    data = b64decode(email['payload']['parts'][0]['body']['data'])
+    print(data)
 
 
 def main():
