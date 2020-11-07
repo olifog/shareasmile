@@ -1,6 +1,7 @@
 import pickle
 import os.path
 import time
+import re
 from base64 import b64decode
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -20,8 +21,18 @@ def get_message(service):
     except (KeyError, IndexError):
         return
 
-    data = b64decode(email['payload']['parts'][0]['body']['data'])
-    print(data)
+    data = b64decode(email['payload']['parts'][0]['body']['data']).decode('utf-8')
+
+    # options
+    matches = re.findall('Step \d(.*?): (.*?)\\r', data)
+    options = [j[1] for j in matches]
+
+    # email
+    match = re.findall('\| (.*?)\\r', data)
+    email = match[0]
+
+    print(f'New order from \'{email}\':')
+    [print(f'Entered option {str(i)}: {options[i - 1]}') for i in range(1, len(options) + 1)]
 
 
 def main():
