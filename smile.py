@@ -1,5 +1,6 @@
 from fastapi import Security, Depends, FastAPI, HTTPException
 from fastapi.security.api_key import APIKeyQuery, APIKey
+from starlette.responses import RedirectResponse
 import uvicorn
 import json
 
@@ -18,7 +19,8 @@ async def get_api_key(api_key_query: str = Security(api_key_query)):
 
 @app.get("/")
 async def root():
-    return {"message": "Hello World"}
+    response = RedirectResponse(url='https://fog.codes/')
+    return response
 
 
 @app.get("/secure-endpoint")
