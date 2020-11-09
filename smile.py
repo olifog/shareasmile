@@ -4,6 +4,7 @@ from starlette.responses import RedirectResponse, StreamingResponse
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+from PIL import Image
 import motor.motor_asyncio
 import segno
 import asyncio
@@ -18,6 +19,7 @@ API_KEY = credentials['key']
 api_key_query = APIKeyQuery(name='api-key', auto_error=False)
 
 app = FastAPI(docs_url=None)
+mask = Image.open('./mask.png')
 
 
 async def get_api_key(api_key_query: str = Security(api_key_query)):
@@ -49,9 +51,13 @@ async def redeem(voucherid):
 
 @app.get("/qr/{voucherid}")
 async def qr(voucherid):
-    img = segno.make_qr(f'https://smile.fog.codes/redeem/{voucherid}', error='h').to_pil(scale=8, dark='#3bcfd4')
+    img = segno.make_qr(f'https://smile.fog.codes/redeem/{voucherid}', error='h').to_pil(scale=10)
+    base = Image.new('RGBA', img.size)
+    base.paste(img)
+    base.paste(mask, (0, 0), mask=mask)
+
     output = io.BytesIO()
-    img.save(output, format="PNG")
+    base.save(output, format="PNG")
     output.seek(0)
     return StreamingResponse(output, media_type="image/png")
 
