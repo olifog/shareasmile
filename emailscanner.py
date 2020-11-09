@@ -2,12 +2,17 @@ import pickle
 import os.path
 import time
 import re
+import requests
+import json
 from base64 import urlsafe_b64decode
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
 SCOPES = ['https://www.googleapis.com/auth/gmail.modify']
+
+credentials = json.load(open('secret.json', 'rb'))
+API_KEY = credentials['key']
 
 
 def get_message(service):
@@ -28,12 +33,21 @@ def get_message(service):
     orders = re.findall('SKU: (.*?)\r', data)
     options = re.findall('Step \d(.*?): (.*?)\r', data)
 
-    x = 0
     for order in orders:
-        print(f'New order from \'{sender}\':')
-        print(f'SKU: {order}')
-        [print(f'Entered option {str(i)}: {options[(x * 3) + (i - 1)][1]}') for i in range(1, 4)]
-        x += 1
+        data = {
+            'sku': order,
+            'sender': sender,
+            'recipient_name': options[0][1],
+            'recipient_email': options[1][1],
+            'api-key': API_KEY
+        }
+
+        try:
+            request['message'] = options[2][0]
+        except IndexError:
+            pass
+
+        requests.post('https://smile.fog.codes/new-voucher/', params=data)
 
 
 def main():
