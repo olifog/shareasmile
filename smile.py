@@ -1,8 +1,11 @@
 from fastapi import Security, Depends, FastAPI, HTTPException
 from fastapi.security.api_key import APIKeyQuery, APIKey
 from starlette.responses import RedirectResponse
+from googleapiclient.discovery import build
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
 import motor.motor_asyncio
-import aiosmtplib
+import segno
 import asyncio
 from datetime import datetime
 from typing import Optional

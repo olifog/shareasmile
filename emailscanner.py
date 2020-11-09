@@ -2,16 +2,16 @@ import pickle
 import os.path
 import time
 import re
-from base64 import b64decode
+from base64 import urlsafe_b64decode
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
-SCOPES = ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.modify']
+SCOPES = ['https://www.googleapis.com/auth/gmail.modify']
 
 
 def get_message(service):
-    searchq = 'is:unread from:email@shareasmiletoday.co.uk'
+    searchq = 'is:unread from:noreply@mysimplestore.com'
     results = service.users().messages().list(userId='me', q=searchq, maxResults=1).execute()
 
     try:
@@ -21,18 +21,19 @@ def get_message(service):
     except (KeyError, IndexError):
         return
 
-    data = b64decode(email['payload']['parts'][0]['body']['data']).decode('utf-8')
+    b64 = email['payload']['parts'][0]['body']['data']
+    data = urlsafe_b64decode(b64 + '=' * (4 - len(b64) % 4)).decode()
 
-    # options
-    matches = re.findall('Step \d(.*?): (.*?)\\r', data)
-    options = [j[1] for j in matches]
+    sender = re.findall(r":(?:.*)(?:\| |\\n)(.*?)\\r\\r\\n\\r\\r\\n<", repr(data))[0]
+    orders = re.findall('SKU: (.*?)\r', data)
+    options = re.findall('Step \d(.*?): (.*?)\r', data)
 
-    # email
-    match = re.findall('\| (.*?)\\r', data)
-    email = match[0]
-
-    print(f'New order from \'{email}\':')
-    [print(f'Entered option {str(i)}: {options[i - 1]}') for i in range(1, len(options) + 1)]
+    x = 0
+    for order in orders:
+        print(f'New order from \'{sender}\':')
+        print(f'SKU: {order}')
+        [print(f'Entered option {str(i)}: {options[(x * 3) + (i - 1)][1]}') for i in range(1, 4)]
+        x += 1
 
 
 def main():
