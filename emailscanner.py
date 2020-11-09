@@ -43,7 +43,7 @@ def get_message(service):
         }
 
         try:
-            request['message'] = options[2][0]
+            data['message'] = options[2][0]
         except IndexError:
             pass
 
