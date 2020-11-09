@@ -1,6 +1,6 @@
 from fastapi import Security, Depends, FastAPI, HTTPException
 from fastapi.security.api_key import APIKeyQuery, APIKey
-from starlette.responses import RedirectResponse
+from starlette.responses import RedirectResponse, StreamingResponse
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Optional
 import uvicorn
 import json
+import io
 
 credentials = json.load(open('secret.json', 'rb'))
 API_KEY = credentials['key']
@@ -41,6 +42,20 @@ async def root():
     return response
 
 
+@app.get("/redeem/{voucherid}")
+async def redeem(voucherid):
+    return {'message': 'success'}
+
+
+@app.get("/qr/{voucherid}")
+async def qr(voucherid):
+    img = segno.make_qr(f'https://smile.fog.codes/redeem/{voucherid}', error='h').to_pil(scale=8, dark='#3bcfd4')
+    output = io.BytesIO()
+    img.save(output, format="PNG")
+    output.seek(0)
+    return StreamingResponse(output, media_type="image/png")
+
+
 @app.get("/new-voucher")
 async def new_voucher(
         sku: str,
@@ -62,7 +77,6 @@ async def new_voucher(
 
     resp = await app.db.vouchers.insert_one(document)
 
-    # generate QR code
     # send email
 
     return {"message": "Success"}
