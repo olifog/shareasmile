@@ -38,7 +38,7 @@ def get_message(service):
         data = {
             'sku': order,
             'sender_name': sender_name[x],
-            'sender_email': sender_email[x],
+            'sender_email': sender_email[0],
             'recipient_name': options[(x * 3)],
             'recipient_email': options[(x * 3) + 1],
             'message': options[(x * 3) + 2],
