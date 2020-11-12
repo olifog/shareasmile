@@ -22,32 +22,33 @@ def get_message(service):
     try:
         emailid = results['messages'][0]['id']
         email = service.users().messages().get(userId='me', id=emailid, format='full').execute()
-        service.users().messages().modify(userId='me', id=emailid, body={'removeLabelIds': ["UNREAD"]}).execute()
     except (KeyError, IndexError):
         return
 
     b64 = email['payload']['parts'][0]['body']['data']
     data = urlsafe_b64decode(b64 + '=' * (4 - len(b64) % 4)).decode()
 
-    sender = re.findall(r":(?:.*)(?:\| |\\n)(.*?)\\r\\r\\n\\r\\r\\n<", repr(data))[0]
-    orders = re.findall('SKU: (.*?)\r', data)
-    options = re.findall('Step \d(.*?): (.*?)\r', data)
+    sender_email = re.findall(r":(?:.*)(?:\| |\\n)(.*?)\\r\\r\\n\\r\\r\\n<", repr(data))
+    sender_name = re.findall(r"e: (.*?)\\r", repr(data))
+    orders = re.findall(r"SKU: (.*?)\\r", repr(data))
+    options = re.findall(r"Step \d: (.*?)\\r", repr(data))
 
+    x = 0
     for order in orders:
         data = {
             'sku': order,
-            'sender': sender,
-            'recipient_name': options[0][1],
-            'recipient_email': options[1][1],
+            'sender_name': sender_name[x],
+            'sender_email': sender_email[x],
+            'recipient_name': options[(x * 3)],
+            'recipient_email': options[(x * 3) + 1],
+            'message': options[(x * 3) + 2],
             'api-key': API_KEY
         }
 
-        try:
-            data['message'] = options[2][1]
-        except IndexError:
-            pass
-
         requests.post('https://smile.fog.codes/new-voucher/', params=data)
+        x += 1
+
+    service.users().messages().modify(userId='me', id=emailid, body={'removeLabelIds': ["UNREAD"]}).execute()
 
 
 def main():
