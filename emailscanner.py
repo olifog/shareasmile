@@ -41,7 +41,7 @@ def get_message(service):
             'sender_email': sender_email[0],
             'recipient_name': options[(x * 3)],
             'recipient_email': options[(x * 3) + 1],
-            'message': options[(x * 3) + 2],
+            'message': options[(x * 3) + 2].strip('\\'),
             'api-key': API_KEY
         }
 
