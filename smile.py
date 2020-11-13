@@ -10,6 +10,7 @@ from PIL import Image
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
+from email.utils import formataddr
 import motor.motor_asyncio
 import segno
 import asyncio
@@ -36,7 +37,7 @@ async def get_api_key(api_key_query: str = Security(api_key_query)):
 
 
 async def generate_qr(voucherid):
-    img = segno.make_qr(f'https://smile.fog.codes/redeem/{voucherid}', error='h').to_pil(scale=10)
+    img = segno.make_qr(f'https://smile.fog.codes/redeem/{voucherid}', error='h').to_pil(scale=10, dark='#3bcfd4')
     base = Image.new('RGBA', img.size)
     base.paste(img)
     base.paste(mask, (0, 0), mask=mask)
@@ -45,8 +46,8 @@ async def generate_qr(voucherid):
 
 async def create_email(document, qr, product, cafe):
     message = MIMEMultipart()
-    message['to'] = document['recipient']['email']
-    message['from'] = "email@shareasmiletoday.co.uk"
+    message['to'] = formataddr((document['recipient']['name'], document['recipient']['email']))
+    message['from'] = formataddr(('Share A Smile Today', 'email@shareasmiletoday.co.uk'))
     message['subject'] = f"{document['sender']['name']} has sent you a gift to make you smile!"
 
     message_text = open('email.txt', 'r').read().format(document=document, cafe=cafe, product=product)
