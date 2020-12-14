@@ -50,17 +50,37 @@ async def create_email(document, qr, product, cafe):
     message['from'] = formataddr(('Share A Smile Today', 'email@shareasmiletoday.co.uk'))
     message['subject'] = f"{document['sender']['name']} has sent you a gift to make you smile!"
 
-    message_text = open('email.txt', 'r').read().format(document=document, cafe=cafe, product=product)
+    message_text = open('email.html', 'r').read().split('</head>')
+    message_text[1] = message_text[1].format(document=document, cafe=cafe, product=product)
+    message_text = '</head>'.join(message_text)
 
     msg = MIMEText(message_text, 'html')
     message.attach(msg)
 
     msg = MIMEImage(qr.getvalue(), _subtype="png")
     qr.close()
-    msg.add_header('Content-Disposition', 'attachment', filename="qr.png")
+    msg.add_header('Content-ID', '<qrcode>')
     message.attach(msg)
 
+    img_dir = "./images"
+    images = [os.path.join(img_dir, i) for i in os.listdir(img_dir)]
+
+    for j, val in enumerate(images):
+        with open('{}'.format(val), "rb") as attachment:
+            msgImage = MIMEImage(attachment.read())
+
+        msgImage.add_header('Content-ID', '<image_id_{}>'.format(j))
+        message.attach(msgImage)
+
     return {'raw': base64.urlsafe_b64encode(message.as_bytes()).decode()}
+
+
+async def check_sent(id):
+    await asyncio.sleep(5)
+    replies = app.service.users().threads().get(userId='me', id=id, format='minimal').execute()
+
+    if len(replies['messages']) > 1:
+        print("EMAIL FAILED")  # emergency, the email wasn't sent correctly- refund the customer and cancel the voucher
 
 
 @app.on_event("startup")
@@ -133,7 +153,9 @@ async def new_voucher(
 
     message = await create_email(document, output, product, cafe)
 
-    app.service.users().messages().send(userId='me', body=message).execute()
+    res = app.service.users().messages().send(userId='me', body=message).execute()
+    asyncio.create_task(check_sent(res['threadId']))
+
     return {"message": "Success"}
 
 
