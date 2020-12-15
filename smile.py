@@ -26,7 +26,7 @@ API_KEY = credentials['key']
 api_key_query = APIKeyQuery(name='api-key', auto_error=False)
 
 app = FastAPI(docs_url=None)
-mask = Image.open('./mask.png')
+mask = Image.open('./qrlogo.png')
 
 
 async def get_api_key(api_key_query: str = Security(api_key_query)):
@@ -69,7 +69,7 @@ async def create_email(document, qr, product, cafe):
         with open('{}'.format(val), "rb") as attachment:
             msgImage = MIMEImage(attachment.read())
 
-        msgImage.add_header('Content-ID', '<image_id_{}>'.format(j))
+        msgImage.add_header('Content-ID', '<{}>'.format(val))
         message.attach(msgImage)
 
     return {'raw': base64.urlsafe_b64encode(message.as_bytes()).decode()}
