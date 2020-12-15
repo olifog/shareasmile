@@ -12,6 +12,7 @@ from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.utils import formataddr
 import motor.motor_asyncio
+from bson.objectid import ObjectId
 import segno
 import asyncio
 import base64
@@ -44,14 +45,14 @@ async def generate_qr(voucherid):
     return base
 
 
-async def create_email(document, qr, product, cafe):
+async def create_email(document, qr, product, business, town):
     message = MIMEMultipart()
     message['to'] = formataddr((document['recipient']['name'], document['recipient']['email']))
     message['from'] = formataddr(('Share A Smile Today', 'email@shareasmiletoday.co.uk'))
     message['subject'] = f"{document['sender']['name']} has sent you a gift to make you smile!"
 
     message_text = open('email.html', 'r').read().split('</head>')
-    message_text[1] = message_text[1].format(document=document, cafe=cafe, product=product)
+    message_text[1] = message_text[1].format(document=document, business=business, product=product, town=town)
     message_text = '</head>'.join(message_text)
 
     msg = MIMEText(message_text, 'html')
@@ -148,10 +149,13 @@ async def new_voucher(
     output = io.BytesIO()
     qr.save(output, format="PNG")
 
-    product = "Cake and Coffee"
-    cafe = "Example Cafe"
+    prod = await app.db.products.find_one({'sku': sku})
+    product = prod['name']
+    business = await app.db.businesses.find_one({'_id': ObjectId(prod['business'])})
+    town = business['town']
+    business = business['name']
 
-    message = await create_email(document, output, product, cafe)
+    message = await create_email(document, output, product, business, town)
 
     res = app.service.users().messages().send(userId='me', body=message).execute()
     asyncio.create_task(check_sent(res['threadId']))
