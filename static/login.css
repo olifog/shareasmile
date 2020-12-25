@@ -13,6 +13,9 @@ input {
 }
 
 #form {
-    width: 50%;
     margin: auto;
+}
+
+#logo {
+    width: 20%;
 }
