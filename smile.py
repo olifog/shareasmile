@@ -11,13 +11,13 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, OA
 from fastapi.security.base import SecurityBase
 from fastapi.security.api_key import APIKeyQuery, APIKey
 from fastapi.security.utils import get_authorization_scheme_param
-from fastapi.staticfiles import StaticFiles
 from fastapi.encoders import jsonable_encoder
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
 from fastapi.openapi.utils import get_openapi
+from fastapi.staticfiles import StaticFiles
 
-from starlette.responses import RedirectResponse, StreamingResponse, Response, JSONResponse
+from starlette.responses import RedirectResponse, StreamingResponse, Response, JSONResponse, FileResponse
 from starlette.status import HTTP_403_FORBIDDEN
 from starlette.requests import Request
 
@@ -46,7 +46,7 @@ from typing import Optional
 from datetime import datetime, timedelta
 
 
-credentials = json.load(open('secret.json', 'rb'))
+credentials = json.load(open('./credentials/secret.json', 'rb'))
 API_KEY = credentials['key']
 SECRET_KEY = credentials['secret']
 ALGORITHM = "HS256"
@@ -54,12 +54,11 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 10080
 
 api_key_query = APIKeyQuery(name='api-key', auto_error=False)
 
-#app = FastAPI(docs_url=None)
-app = FastAPI()
+app = FastAPI(docs_url=None)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-mask = Image.open('./qrlogo.png')
+mask = Image.open('./static/images/qrlogo.png')
 
 
 def get_oauth2_token(request: Request):
@@ -125,7 +124,7 @@ async def create_email(document, qr, product, business, town):
     message['from'] = formataddr(('Share A Smile Today', 'email@shareasmiletoday.co.uk'))
     message['subject'] = f"{document['sender']['name']} has sent you a gift to make you smile!"
 
-    message_text = open('email.html', 'r').read().split('</head>')
+    message_text = open('./static/html/email.html', 'r').read().split('</head>')
     message_text[1] = message_text[1].format(document=document, business=business, product=product, town=town)
     message_text = '</head>'.join(message_text)
 
@@ -137,7 +136,7 @@ async def create_email(document, qr, product, business, town):
     msg.add_header('Content-ID', '<qrcode>')
     message.attach(msg)
 
-    img_dir = "./images"
+    img_dir = "./static/email_images"
     images = [os.path.join(img_dir, i) for i in os.listdir(img_dir)]
 
     for j, val in enumerate(images):
@@ -167,24 +166,24 @@ async def startup_event():
     app.db = app.motor_client.smile
 
     creds = None
-    if os.path.exists('token.pickle'):
-        with open('token.pickle', 'rb') as token:
+    if os.path.exists('./credentials/token.pickle'):
+        with open('./credentials/token.pickle', 'rb') as token:
             creds = pickle.load(token)
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(GoogleRequest())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
+            flow = InstalledAppFlow.from_client_secrets_file('./credentials/credentials.json', SCOPES)
             creds = flow.run_local_server(port=0)
 
-        with open('token.pickle', 'wb') as token:
+        with open('./credentials/token.pickle', 'wb') as token:
             pickle.dump(creds, token)
 
     app.service = build('gmail', 'v1', credentials=creds)
 
 
-@app.post("/login", response_model=Token)
+@app.post("/auth", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     user = await authenticate_user(form_data.username, form_data.password)
     if not user:
@@ -260,6 +259,11 @@ async def root():
     return response
 
 
+@app.get("/login")
+async def login():
+    return FileResponse("./static/html/login.html")
+
+
 @app.get("/redeem/{voucherid}")
 async def redeem(voucherid, request: Request):
     token = get_oauth2_token(request)
@@ -279,7 +283,7 @@ async def redeem(voucherid, request: Request):
     business = await app.db.businesses.find_one({'_id': ObjectId(product['business'])})
 
     if not token:
-        response = RedirectResponse(url=f"/static/login.html?name={business['name']}&redeem={voucherid}")
+        response = RedirectResponse(url=f"/login?name={business['name']}&redeem={voucherid}")
         return response
 
     # send money to the business

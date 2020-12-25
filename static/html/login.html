@@ -5,14 +5,14 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link rel="preconnect" href="https://fonts.gstatic.com">
         <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
-        <link rel="stylesheet" href="login.css">
-        <link rel="icon" href="logo.png">
+        <link rel="stylesheet" href="static/css/login.css">
+        <link rel="icon" href="static/email_images/logo.png">
         <title>Share A Smile Today</title>
     </head>
 
     <body>
         <form id="form" action="#">
-            <img id="logo" src="logo.png" alt="">
+            <img id="logo" src="static/email_images/logo.png" alt="">
             <div id="start"></div>
             <br>
             <label>
@@ -44,7 +44,7 @@
                         document.getElementById("response").innerHTML = "Sorry, wrong password.";
                     }
                 };
-                xhttp.open("POST", "/login", true);
+                xhttp.open("POST", "/auth", true);
                 xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
                 xhttp.send(params);
             }
