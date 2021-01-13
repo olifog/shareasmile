@@ -111,7 +111,7 @@ async def get_api_key(api_key_query: str = Security(api_key_query)):
 
 
 async def generate_qr(voucherid):
-    img = segno.make_qr(f'https://smile.fog.codes/redeem/{voucherid}', error='h').to_pil(scale=10, dark='#3bcfd4')
+    img = segno.make_qr(f'https://smile.coupons/redeem/{voucherid}', error='h').to_pil(scale=10, dark='#3bcfd4')
     base = Image.new('RGBA', img.size)
     base.paste(img)
     base.paste(mask, (0, 0), mask=mask)
@@ -139,9 +139,12 @@ async def create_email(document, qr, product, business, town):
     img_dir = "./static/email_images"
     images = [os.path.join(img_dir, i) for i in os.listdir(img_dir)]
 
+    print('test')
+
     for j, val in enumerate(images):
         with open('{}'.format(val), "rb") as attachment:
             msgImage = MIMEImage(attachment.read())
+
 
         msgImage.add_header('Content-ID', '<{}>'.format(val))
         message.attach(msgImage)
@@ -161,7 +164,7 @@ async def check_sent(id):
 async def startup_event():
     loop = asyncio.get_running_loop()
 
-    uri = f"mongodb://api:{credentials['mongopass']}@olifog.me:27017/?authSource=test"
+    uri = f"mongodb://api:{credentials['mongopass']}@smile.coupons:27017/?authSource=test"
     app.motor_client = motor.motor_asyncio.AsyncIOMotorClient(uri, io_loop=loop)
     app.db = app.motor_client.smile
 
@@ -203,7 +206,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     response.set_cookie(
         "Authorization",
         value=f"Bearer {token}",
-        domain="smile.fog.codes",
+        domain="smile.coupons",
         httponly=True,
         max_age=1800,
         expires=1800,
@@ -255,7 +258,7 @@ async def new_voucher(
 
 @app.get("/")
 async def root():
-    response = RedirectResponse(url='https://fog.codes/')
+    response = RedirectResponse(url='https://shareasmiletoday.co.uk')
     return response
 
 

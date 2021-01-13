@@ -45,7 +45,7 @@ def get_message(service):
             'api-key': API_KEY
         }
 
-        requests.post('https://smile.fog.codes/new-voucher/', params=data)
+        requests.post('https://smile.coupons/new-voucher', params=data)
         x += 1
 
     service.users().messages().modify(userId='me', id=emailid, body={'removeLabelIds': ["UNREAD"]}).execute()
