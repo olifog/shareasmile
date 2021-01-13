@@ -164,7 +164,7 @@ async def check_sent(id):
 async def startup_event():
     loop = asyncio.get_running_loop()
 
-    uri = f"mongodb://api:{credentials['mongopass']}@smile.coupons:27017/?authSource=test"
+    uri = f"mongodb://admin:{credentials['mongopass']}@smile.coupons:27017/?authSource=admin"
     app.motor_client = motor.motor_asyncio.AsyncIOMotorClient(uri, io_loop=loop)
     app.db = app.motor_client.smile
 
