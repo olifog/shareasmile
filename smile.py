@@ -318,7 +318,7 @@ async def redeem(voucherid, request: Request):
     product = await app.db.products.find_one({'sku': voucher['sku']})
     business = await app.db.businesses.find_one({'_id': ObjectId(product['business'])})
 
-    if not token and False:
+    if not token:
         response = RedirectResponse(url=f"/login?name={business['name']}&redeem={voucherid}")
         return response
 
