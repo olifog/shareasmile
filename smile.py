@@ -265,6 +265,16 @@ async def login():
     return FileResponse("./static/html/login.html")
 
 
+@app.get("/success")
+async def success():
+    return FileResponse("static/html/success.html")
+
+
+@app.get("/fail")
+async def fail():
+    return FileResponse("./static/html/fail.html")
+
+
 @app.get("/payments", response_class=PlainTextResponse)
 async def new_voucher(api_key: APIKey = Depends(get_api_key)):
     res = ""
@@ -303,23 +313,20 @@ async def redeem(voucherid, request: Request):
         voucher = None
 
     if not voucher:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="That voucher is either invalid or has expired!",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        return RedirectResponse(url="/fail")
 
     product = await app.db.products.find_one({'sku': voucher['sku']})
     business = await app.db.businesses.find_one({'_id': ObjectId(product['business'])})
 
-    if not token:
+    if not token and False:
         response = RedirectResponse(url=f"/login?name={business['name']}&redeem={voucherid}")
         return response
 
     await app.db.businesses.update_one({'_id': ObjectId(product['business'])}, {'$set': {'owe': business['owe'] + product['price']}})
     await app.db.businesses.update_one({'_id': ObjectId(product['business'])}, {'$push': {'stagedRedeemed': {'name': product['name'], 'redeemDate': datetime.now(), 'id': voucher['_id']}}})
     await app.db.vouchers.delete_many({'_id': ObjectId(voucherid)})
-    return {'message': 'Voucher redeemed!'}
+
+    return RedirectResponse(url=f"/success?name={voucher['recipient']['name']}&product={product['name']}")
 
 
 if __name__ == "__main__":
