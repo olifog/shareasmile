@@ -17,7 +17,8 @@ from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
 from fastapi.openapi.utils import get_openapi
 from fastapi.staticfiles import StaticFiles
 
-from starlette.responses import RedirectResponse, StreamingResponse, Response, JSONResponse, FileResponse, PlainTextResponse
+from starlette.responses import RedirectResponse, StreamingResponse, Response, JSONResponse, FileResponse, \
+    PlainTextResponse
 from starlette.status import HTTP_403_FORBIDDEN
 from starlette.requests import Request
 
@@ -44,7 +45,6 @@ import segno
 
 from typing import Optional
 from datetime import datetime, timedelta
-
 
 credentials = json.load(open('./credentials/secret.json', 'rb'))
 API_KEY = credentials['key']
@@ -142,7 +142,6 @@ async def create_email(document, qr, product, business, town):
     for j, val in enumerate(images):
         with open('{}'.format(val), "rb") as attachment:
             msgImage = MIMEImage(attachment.read())
-
 
         msgImage.add_header('Content-ID', '<{}>'.format(val))
         message.attach(msgImage)
@@ -244,8 +243,14 @@ async def new_voucher(
     product = prod['name']
     business = await app.db.businesses.find_one({'_id': ObjectId(prod['business'])})
     town = business['town']
-    business = business['name']
 
+    await app.db.products.update_one({'_id': ObjectId(prod['_id'])}, {'$set': {'bought': prod['bought'] + 1}})
+    await app.db.businesses.update_one({'_id': ObjectId(business['_id'])},
+                                       {'$set': {'stats.orders': business['stats']['orders'] + 1,
+                                                 'stats.received': business['stats']['received'] + prod[
+                                                     'retailPrice']}})
+
+    business = business['name']
     message = await create_email(document, output, product, business, town)
 
     res = app.service.users().messages().send(userId='me', body=message).execute()
@@ -276,15 +281,15 @@ async def fail():
 
 
 @app.get("/payments", response_class=PlainTextResponse)
-async def new_voucher(api_key: APIKey = Depends(get_api_key)):
+async def payments(api_key: APIKey = Depends(get_api_key)):
     res = ""
 
     async for business in app.db.businesses.find({}):
         if len(business['stagedRedeemed']) == 0:
-            res += f"{business['name']}\n    No vouchers bought since last business deposit!\n\n\n"
+            res += f"{business['name']}\n    No vouchers redeemed since last business deposit!\n\n\n"
             continue
 
-        res += f"{business['name']}\n    Money owed:  {str(business['owe'])}"
+        res += f"{business['name']}\n    Money owed:  {str(business['owe'] / 100)}"
         res += f"\n    Go to this link when money has been sent:  https://smile.coupons/stage/{business['_id']}?api-key={api_key}"
         res += "\n    List of vouchers redeemed:"
 
@@ -296,10 +301,36 @@ async def new_voucher(api_key: APIKey = Depends(get_api_key)):
     return res
 
 
+@app.get("/stats", response_class=PlainTextResponse)
+async def stats(api_key: APIKey = Depends(get_api_key)):
+    res = ""
+
+    async for business in app.db.businesses.find({}):
+        res += f"{business['name']}\n    Stats-\n        Total vouchers sold:  {str(business['stats']['orders'])}"
+        res += f"\n        Money received:  {str(business['stats']['received'] / 100)}"
+        res += f"\n        Money sent:  {str(business['stats']['sent'] / 100)}"
+        res += f"\n        Profit:  {str((business['stats']['received'] - business['stats']['sent']) / 100)}"
+
+        res += f"\n    Sales by voucher-"
+        async for product in app.db.products.find({'business': str(business['_id'])}):
+            res += f"\n        {product['name']} | {product['bought']} sales"
+
+        res += "\n    List of every voucher redeemed-"
+        for voucher in business['redeemed']:
+            res += f"\n        {voucher['id']} | {str(voucher['redeemDate'])} | {voucher['name']}"
+        for voucher in business['stagedRedeemed']:
+            res += f"\n        {voucher['id']} | {str(voucher['redeemDate'])} | {voucher['name']}"
+
+        res += "\n\n\n"
+
+    return res
+
+
 @app.get("/stage/{businessid}")
 async def stage(businessid, api_key: APIKey = Depends(get_api_key)):
     business = await app.db.businesses.find_one({'_id': ObjectId(businessid)})
-    await app.db.businesses.update_one({'_id': ObjectId(businessid)}, {'$push': {'redeemed': {'$each': business['stagedRedeemed']}}})
+    await app.db.businesses.update_one({'_id': ObjectId(businessid)},
+                                       {'$push': {'redeemed': {'$each': business['stagedRedeemed']}}})
     await app.db.businesses.update_one({'_id': ObjectId(businessid)}, {'$set': {'owe': 0, 'stagedRedeemed': []}})
     return RedirectResponse(url=f"/payments?api-key={api_key}")
 
@@ -322,8 +353,11 @@ async def redeem(voucherid, request: Request):
         response = RedirectResponse(url=f"/login?name={business['name']}&redeem={voucherid}")
         return response
 
-    await app.db.businesses.update_one({'_id': ObjectId(product['business'])}, {'$set': {'owe': business['owe'] + product['price']}})
-    await app.db.businesses.update_one({'_id': ObjectId(product['business'])}, {'$push': {'stagedRedeemed': {'name': product['name'], 'redeemDate': datetime.now(), 'id': voucher['_id']}}})
+    await app.db.businesses.update_one({'_id': ObjectId(product['business'])},
+                                       {'$set': {'owe': business['owe'] + product['price'],
+                                                 'stats.sent': business['stats']['sent'] + product['price']}})
+    await app.db.businesses.update_one({'_id': ObjectId(product['business'])}, {
+        '$push': {'stagedRedeemed': {'name': product['name'], 'redeemDate': datetime.now(), 'id': voucher['_id']}}})
     await app.db.vouchers.delete_many({'_id': ObjectId(voucherid)})
 
     return RedirectResponse(url=f"/success?name={voucher['recipient']['name']}&product={product['name']}")
