@@ -304,12 +304,19 @@ async def payments(api_key: APIKey = Depends(get_api_key)):
 @app.get("/stats", response_class=PlainTextResponse)
 async def stats(api_key: APIKey = Depends(get_api_key)):
     res = ""
+    total_sold = 0
+    money_received = 0
+    money_sent = 0
 
     async for business in app.db.businesses.find({}):
         res += f"{business['name']}\n    Stats-\n        Total vouchers sold:  {str(business['stats']['orders'])}"
         res += f"\n        Money received:  {str(business['stats']['received'] / 100)}"
         res += f"\n        Money sent:  {str(business['stats']['sent'] / 100)}"
         res += f"\n        Profit:  {str((business['stats']['received'] - business['stats']['sent']) / 100)}"
+
+        total_sold += business['stats']['orders']
+        money_received += business['stats']['received']
+        money_sent += business['stats']['sent']
 
         res += f"\n    Sales by voucher-"
         async for product in app.db.products.find({'business': str(business['_id'])}):
@@ -322,6 +329,13 @@ async def stats(api_key: APIKey = Depends(get_api_key)):
             res += f"\n        {voucher['id']} | {str(voucher['redeemDate'])} | {voucher['name']}"
 
         res += "\n\n\n"
+
+    overall_stats = f"Overall Stats\n    Total vouchers sold:  {str(total_sold)}"
+    overall_stats += f"\n    Total money received:  {str(money_received / 100)}"
+    overall_stats += f"\n    Total money sent:  {str(money_sent / 100)}"
+    overall_stats += f"\n    Total profit:  {str((money_received - money_sent) / 100)}"
+
+    res = overall_stats + "\n\n\n" + res
 
     return res
 
